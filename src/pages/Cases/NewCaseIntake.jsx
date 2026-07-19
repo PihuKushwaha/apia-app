@@ -170,7 +170,16 @@ export default function NewCaseIntake() {
             <Loader2 size={12} className="animate-spin" /> {statusMsg}
           </p>
         )}
-
+{pendingManualCreate && (
+          <button
+            type="button"
+            onClick={handleManualCreate}
+            disabled={loading}
+            className="border border-navy text-navy px-4 py-2 rounded text-sm w-full"
+          >
+            Create case without AI (fill everything manually)
+          </button>
+        )}
         <button
           type="submit"
           disabled={loading}
