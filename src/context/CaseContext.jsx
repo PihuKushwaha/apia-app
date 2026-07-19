@@ -3,11 +3,9 @@ import { useAuthContext } from "./AuthContext.jsx";
 import {
   subscribeCases,
   createCaseDoc,
-  toggleWorkflowStepDoc,
-  updateDocumentsField,
-  pushEvidence,
+  updateWorkflowField,
+  updateExtractionField,
   pushTimelineEvent,
-  pushChatMessage,
 } from "../services/casesService.js";
 
 const CaseContext = createContext(null);
@@ -32,36 +30,30 @@ export function CaseProvider({ children }) {
 
   const getCase = (id) => cases.find((c) => c.id === id);
 
+  const isCaseComplete = (c) => c.workflow.length > 0 && c.workflow.every((w) => w.done);
+
   const toggleWorkflowStep = async (id, stepIndex) => {
     const c = getCase(id);
     if (!c) return;
     const workflow = c.workflow.map((w, i) => (i === stepIndex ? { ...w, done: !w.done } : w));
-    await toggleWorkflowStepDoc(id, workflow);
+    await updateWorkflowField(id, workflow);
   };
 
-  const approveDocument = async (id, docIndex) => {
+  const saveStepContent = async (id, stepIndex, content) => {
     const c = getCase(id);
     if (!c) return;
-    const documents = c.documents.map((d, i) => (i === docIndex ? { ...d, status: "approved" } : d));
-    await updateDocumentsField(id, documents);
+    const workflow = c.workflow.map((w, i) =>
+      i === stepIndex ? { ...w, content, done: content.trim().length > 0 } : w
+    );
+    await updateWorkflowField(id, workflow);
   };
 
-  const addDocument = async (id, doc) => {
-    const c = getCase(id);
-    if (!c) return;
-    await updateDocumentsField(id, [...c.documents, doc]);
-  };
-
-  const addEvidence = async (id, item) => {
-    await pushEvidence(id, item);
+  const updateExtraction = async (id, extraction) => {
+    await updateExtractionField(id, extraction);
   };
 
   const addTimelineEvent = async (id, label) => {
     await pushTimelineEvent(id, { time: new Date().toLocaleTimeString(), label });
-  };
-
-  const addChatMessage = async (id, message) => {
-    await pushChatMessage(id, message);
   };
 
   return (
@@ -70,12 +62,11 @@ export function CaseProvider({ children }) {
         cases,
         createCase,
         getCase,
+        isCaseComplete,
         toggleWorkflowStep,
-        approveDocument,
-        addDocument,
-        addEvidence,
+        saveStepContent,
+        updateExtraction,
         addTimelineEvent,
-        addChatMessage,
       }}
     >
       {children}

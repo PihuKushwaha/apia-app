@@ -1,21 +1,21 @@
 import { useNavigate } from "react-router-dom";
-import { ClipboardList, FolderClock, AlertOctagon, Files } from "lucide-react";
+import { CheckCircle2, FolderClock, AlertOctagon, Files } from "lucide-react";
 import { useCaseContext } from "../../context/CaseContext.jsx";
 import StatusCard from "../../components/common/StatusCard.jsx";
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { cases } = useCaseContext();
+  const { cases, isCaseComplete } = useCaseContext();
 
-  const pendingCases = cases.filter((c) => c.status !== "done").length;
-  const overdue = cases.filter((c) => c.workflow.every((w) => !w.done) && c.workflow.length > 0).length;
-  const todaysTasks = cases.reduce((sum, c) => sum + c.workflow.filter((w) => !w.done).length, 0);
+  const doneCases = cases.filter((c) => isCaseComplete(c)).length;
+  const pendingCases = cases.filter((c) => !isCaseComplete(c)).length;
+  const noStepsDone = cases.filter((c) => c.workflow.every((w) => !w.done) && c.workflow.length > 0).length;
 
   const stats = [
-    { title: "Today's Tasks", count: todaysTasks, status: "orange", filter: "today", icon: ClipboardList },
-    { title: "Pending Cases", count: pendingCases, status: "neutral", filter: "pending", icon: FolderClock },
-    { title: "Overdue", count: overdue, status: "red", filter: "overdue", icon: AlertOctagon },
-    { title: "Total Cases", count: cases.length, status: "green", filter: "all", icon: Files },
+    { title: "Total Cases", count: cases.length, status: "neutral", icon: Files },
+    { title: "Done", count: doneCases, status: "green", icon: CheckCircle2 },
+    { title: "Pending", count: pendingCases, status: "red", icon: FolderClock },
+    { title: "Not Started", count: noStepsDone, status: "orange", icon: AlertOctagon },
   ];
 
   return (
@@ -32,7 +32,7 @@ export default function Dashboard() {
             title={stat.title}
             count={stat.count}
             status={stat.status}
-            onClick={() => navigate(`/cases?filter=${stat.filter}`)}
+            onClick={() => navigate(`/cases`)}
           />
         ))}
       </div>

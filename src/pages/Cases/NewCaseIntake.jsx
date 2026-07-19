@@ -2,8 +2,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FileText, Image as ImageIcon, Mic, Type, Loader2, Sparkles } from "lucide-react";
 import { useCaseContext } from "../../context/CaseContext.jsx";
-import { INVESTIGATION_TYPES } from "../../utils/constants.js";
-import { fileToBase64, extractDocument } from "../../utils/fileHelpers.js";
+import { useAuthContext } from "../../context/AuthContext.jsx";
+import { CASE_TYPES } from "../../utils/caseTypes.js";
+import { fileToBase64, uploadFileToStorage, extractDocument } from "../../utils/fileHelpers.js";
 
 const uploadModes = [
   { key: "document", label: "PDF / DOCX", icon: FileText },
@@ -15,8 +16,9 @@ const uploadModes = [
 export default function NewCaseIntake() {
   const navigate = useNavigate();
   const { createCase } = useCaseContext();
+  const { officer } = useAuthContext();
   const [mode, setMode] = useState("document");
-  const [crimeType, setCrimeType] = useState("");
+  const [crimeTypeCode, setCrimeTypeCode] = useState("");
   const [text, setText] = useState("");
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -30,24 +32,24 @@ export default function NewCaseIntake() {
         const mammoth = (await import("mammoth")).default;
         const arrayBuffer = await file.arrayBuffer();
         const result = await mammoth.extractRawText({ arrayBuffer });
-        setStatusMsg("AI is analyzing the document...");
+        setStatusMsg("AI is reading every detail in the document...");
         return await extractDocument({ mode: "text", extractedText: result.value });
       }
-      setStatusMsg("Reading PDF file...");
-      const base64 = await fileToBase64(file);
-      setStatusMsg("AI is analyzing the document...");
-      return await extractDocument({ mode: "file", fileBase64: base64, mediaType: file.type || "application/pdf" });
+      setStatusMsg("Uploading PDF...");
+      const url = await uploadFileToStorage(file, officer.uid);
+      setStatusMsg("AI is reading every detail in the document...");
+      return await extractDocument({ mode: "url", fileUrl: url, mediaType: file.type || "application/pdf" });
     }
 
     if (mode === "photo" && file) {
-      setStatusMsg("Reading image...");
-      const base64 = await fileToBase64(file);
-      setStatusMsg("AI is analyzing the photo...");
-      return await extractDocument({ mode: "file", fileBase64: base64, mediaType: file.type || "image/jpeg" });
+      setStatusMsg("Uploading photo...");
+      const url = await uploadFileToStorage(file, officer.uid);
+      setStatusMsg("AI is reading every detail in the photo...");
+      return await extractDocument({ mode: "url", fileUrl: url, mediaType: file.type || "image/jpeg" });
     }
 
     if (mode === "text" && text.trim()) {
-      setStatusMsg("AI is analyzing the text...");
+      setStatusMsg("AI is reading every detail in the text...");
       return await extractDocument({ mode: "text", extractedText: text });
     }
 
@@ -63,22 +65,17 @@ export default function NewCaseIntake() {
       try {
         extraction = await runExtraction();
       } catch (aiErr) {
-        setError(`AI could not fully read the document (${aiErr.message}). Case created with the info you gave; you can fill the rest manually.`);
+        setError(`AI could not fully read the document (${aiErr.message}). Case created with what you gave; fill the rest manually.`);
       }
 
-      const finalCrimeType = extraction?.crimeType || crimeType;
-      if (!finalCrimeType) {
+      const finalTypeCode = crimeTypeCode || extraction?.crimeType;
+      if (!finalTypeCode) {
         setError("Could not detect investigation type automatically. Please select it above.");
         setLoading(false);
         return;
       }
 
-      const id = await createCase({
-        crimeType: finalCrimeType,
-        sourceText: extraction?.summary || text,
-        sourceMode: mode,
-        extraction,
-      });
+      const id = await createCase({ crimeTypeCode: finalTypeCode, sourceMode: mode, extraction });
       navigate(`/cases/${id}`);
     } catch (err) {
       setError(err.message || "Something went wrong creating the case.");
@@ -95,20 +92,20 @@ export default function NewCaseIntake() {
         <h1 className="text-xl font-semibold">New case intake</h1>
       </div>
       <p className="text-sm text-gray-500 mb-4">
-        Upload the FIR, complaint, or any investigation document. AI reads it and sets up the case automatically.
+        Upload the FIR, complaint, or any investigation document. AI reads every detail and sets up the case.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="text-sm font-medium block mb-2">Investigation type (auto-detected, override if needed)</label>
           <select
-            value={crimeType}
-            onChange={(e) => setCrimeType(e.target.value)}
+            value={crimeTypeCode}
+            onChange={(e) => setCrimeTypeCode(e.target.value)}
             className="w-full border rounded px-3 py-2 text-sm"
           >
             <option value="">Let AI detect it</option>
-            {INVESTIGATION_TYPES.map((t) => (
-              <option key={t} value={t}>{t}</option>
+            {CASE_TYPES.map((t) => (
+              <option key={t.code} value={t.code}>{t.label} ({t.labelHi})</option>
             ))}
           </select>
         </div>
