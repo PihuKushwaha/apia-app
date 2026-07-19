@@ -32,20 +32,34 @@ export default function NewCaseIntake() {
         setStatusMsg("Reading DOCX file...");
         const mammoth = (await import("mammoth")).default;
         const arrayBuffer = await file.arrayBuffer();
-        const result = await mammoth.extractRawText({ arrayBuffer });
+        let result;
+        try {
+          result = await mammoth.extractRawText({ arrayBuffer });
+        } catch {
+          throw new Error(
+            'This file does not look like a valid .docx. If it is actually a PDF that was renamed to .docx, please pick the real .pdf file instead. If it is an old .doc file, open it in Word and use "Save As" to convert it to .docx first.'
+          );
+        }
         setStatusMsg("AI is reading every detail in the document...");
         return await extractDocument({ mode: "text", extractedText: result.value });
       }
-      setStatusMsg("Uploading PDF...");
-      const url = await uploadFileToStorage(file, officer.uid);
+      setStatusMsg("Reading PDF file...");
       setStatusMsg("AI is reading every detail in the document...");
+      if (file.size < 4 * 1024 * 1024) {
+        const base64 = await fileToBase64(file);
+        return await extractDocument({ mode: "file", fileBase64: base64, mediaType: file.type || "application/pdf" });
+      }
+      const url = await uploadFileToStorage(file, officer.uid);
       return await extractDocument({ mode: "url", fileUrl: url, mediaType: file.type || "application/pdf" });
     }
 
     if (mode === "photo" && file) {
-      setStatusMsg("Uploading photo...");
-      const url = await uploadFileToStorage(file, officer.uid);
       setStatusMsg("AI is reading every detail in the photo...");
+      if (file.size < 4 * 1024 * 1024) {
+        const base64 = await fileToBase64(file);
+        return await extractDocument({ mode: "file", fileBase64: base64, mediaType: file.type || "image/jpeg" });
+      }
+      const url = await uploadFileToStorage(file, officer.uid);
       return await extractDocument({ mode: "url", fileUrl: url, mediaType: file.type || "image/jpeg" });
     }
 
