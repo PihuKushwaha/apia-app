@@ -24,6 +24,7 @@ export default function NewCaseIntake() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [statusMsg, setStatusMsg] = useState("");
+  const [pendingManualCreate, setPendingManualCreate] = useState(false);
 
   const runExtraction = async () => {
     if (mode === "document" && file) {
@@ -60,12 +61,19 @@ export default function NewCaseIntake() {
     e.preventDefault();
     setError("");
     setLoading(true);
+    setPendingManualCreate(false);
     try {
       let extraction = null;
       try {
         extraction = await runExtraction();
       } catch (aiErr) {
-        setError(`AI could not fully read the document (${aiErr.message}). Case created with what you gave; fill the rest manually.`);
+        setError(
+          `AI could not read the document (${aiErr.message}). If you're testing on "npm run dev" locally, AI reading only works when deployed on Vercel (or via "vercel dev") - it won't work on plain localhost. You can still create the case and fill everything manually below.`
+        );
+        setPendingManualCreate(true);
+        setLoading(false);
+        setStatusMsg("");
+        return;
       }
 
       const finalTypeCode = crimeTypeCode || extraction?.crimeType;
@@ -82,6 +90,21 @@ export default function NewCaseIntake() {
     } finally {
       setLoading(false);
       setStatusMsg("");
+    }
+  };
+
+  const handleManualCreate = async () => {
+    if (!crimeTypeCode) {
+      setError("Please select an investigation type to continue without AI.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const id = await createCase({ crimeTypeCode, sourceMode: mode, extraction: null });
+      navigate(`/cases/${id}`);
+    } catch (err) {
+      setError(err.message || "Something went wrong creating the case.");
+      setLoading(false);
     }
   };
 
@@ -170,7 +193,8 @@ export default function NewCaseIntake() {
             <Loader2 size={12} className="animate-spin" /> {statusMsg}
           </p>
         )}
-{pendingManualCreate && (
+
+        {pendingManualCreate && (
           <button
             type="button"
             onClick={handleManualCreate}
@@ -180,6 +204,7 @@ export default function NewCaseIntake() {
             Create case without AI (fill everything manually)
           </button>
         )}
+
         <button
           type="submit"
           disabled={loading}
