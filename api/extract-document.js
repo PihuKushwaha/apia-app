@@ -1,20 +1,23 @@
 import { CASE_TYPES } from "../src/utils/caseTypes.js";
 
+export const config = { maxDuration: 60 };
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: "ANTHROPIC_API_KEY is not set on the server." });
-  }
+  try {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: "ANTHROPIC_API_KEY is not set on the server." });
+    }
 
-  const { mode, extractedText, fileBase64, mediaType } = req.body || {};
+    const { mode, extractedText, fileBase64, mediaType, fileUrl } = req.body || {};
 
-  const typeList = CASE_TYPES.map((t) => `${t.code} = ${t.label} (${t.labelHi})`).join("\n");
+    const typeList = CASE_TYPES.map((t) => `${t.code} = ${t.label} (${t.labelHi})`).join("\n");
 
-  const systemPrompt = `You are analyzing a police investigation document (FIR, complaint, charge sheet, hospital record, or any related report). It may be in Hindi, English, or mixed.
+    const systemPrompt = `You are analyzing a police investigation document (FIR, complaint, charge sheet, hospital record, or any related report). It may be in Hindi, English, or mixed.
 Read the ENTIRE document carefully and extract every fact that is present - do not skip anything, do not summarize away details.
 
 Pick the closest matching case type code from this list:
@@ -47,41 +50,41 @@ Rules:
 - Keep names, numbers, dates exactly as written in the document (do not translate names).
 - accused[].sections and complainant fields should be filled per-person where the document specifies them.`;
 
-  let content;
-  if (mode === "text") {
-    if (!extractedText || !extractedText.trim()) {
-      return res.status(400).json({ error: "No text provided to analyze." });
-    }
-    content = [{ type: "text", text: extractedText }];
-  } else if (mode === "file" || mode === "url") {
-    let base64 = fileBase64;
-    if (mode === "url") {
-      const { fileUrl } = req.body;
-      if (!fileUrl) return res.status(400).json({ error: "No file URL provided." });
-      const fetchRes = await fetch(fileUrl);
-      if (!fetchRes.ok) return res.status(400).json({ error: "Could not download the uploaded file." });
-      const arrayBuffer = await fetchRes.arrayBuffer();
-      base64 = Buffer.from(arrayBuffer).toString("base64");
-    }
-    if (!base64) {
-      return res.status(400).json({ error: "No file data provided." });
-    }
-    if (mediaType === "application/pdf") {
-      content = [
-        { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } },
-        { type: "text", text: "Extract every case detail from this document, following the schema exactly." },
-      ];
+    let content;
+    if (mode === "text") {
+      if (!extractedText || !extractedText.trim()) {
+        return res.status(400).json({ error: "No text provided to analyze." });
+      }
+      content = [{ type: "text", text: extractedText }];
+    } else if (mode === "file" || mode === "url") {
+      let base64 = fileBase64;
+      if (mode === "url") {
+        if (!fileUrl) return res.status(400).json({ error: "No file URL provided." });
+        const fetchRes = await fetch(fileUrl);
+        if (!fetchRes.ok) {
+          return res.status(400).json({ error: `Could not download the uploaded file (status ${fetchRes.status}).` });
+        }
+        const arrayBuffer = await fetchRes.arrayBuffer();
+        base64 = Buffer.from(arrayBuffer).toString("base64");
+      }
+      if (!base64) {
+        return res.status(400).json({ error: "No file data provided." });
+      }
+      if (mediaType === "application/pdf") {
+        content = [
+          { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } },
+          { type: "text", text: "Extract every case detail from this document, following the schema exactly." },
+        ];
+      } else {
+        content = [
+          { type: "image", source: { type: "base64", media_type: mediaType || "image/jpeg", data: base64 } },
+          { type: "text", text: "Extract every case detail from this document image, following the schema exactly." },
+        ];
+      }
     } else {
-      content = [
-        { type: "image", source: { type: "base64", media_type: mediaType || "image/jpeg", data: base64 } },
-        { type: "text", text: "Extract every case detail from this document image, following the schema exactly." },
-      ];
+      return res.status(400).json({ error: "Invalid mode. Use 'text', 'file', or 'url'." });
     }
-  } else {
-    return res.status(400).json({ error: "Invalid mode. Use 'text', 'file', or 'url'." });
-  }
 
-  try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -116,6 +119,7 @@ Rules:
 
     return res.status(200).json(parsed);
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error("extract-document crashed:", err);
+    return res.status(500).json({ error: err.message || "Unexpected server error." });
   }
 }
