@@ -4,36 +4,26 @@ import { useAuthContext } from "../../context/AuthContext.jsx";
 
 export default function Login() {
   const navigate = useNavigate();
-  const { sendOtp, confirmOtp } = useAuthContext();
-  const [phone, setPhone] = useState("+91");
-  const [otp, setOtp] = useState("");
-  const [step, setStep] = useState("phone"); // "phone" | "otp"
+  const { login, signup } = useAuthContext();
+  const [mode, setMode] = useState("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSendOtp = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      await sendOtp(phone);
-      setStep("otp");
-    } catch (err) {
-      setError(err.message || "Failed to send OTP");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    try {
-      await confirmOtp(otp);
+      if (mode === "login") {
+        await login(email, password);
+      } else {
+        await signup(email, password);
+      }
       navigate("/");
     } catch (err) {
-      setError(err.message || "Invalid OTP");
+      setError(err.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -42,44 +32,43 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-navy">
       <div className="bg-white rounded-xl p-8 w-full max-w-sm">
-        <h1 className="text-xl font-semibold mb-4">APIA Login</h1>
+        <h1 className="text-xl font-semibold mb-1">APIA</h1>
+        <p className="text-sm text-gray-500 mb-4">
+          {mode === "login" ? "Officer login" : "Create officer account"}
+        </p>
 
-        {step === "phone" && (
-          <form onSubmit={handleSendOtp} className="space-y-3">
-            <label className="text-sm block">Mobile number</label>
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+91XXXXXXXXXX"
-              className="w-full border rounded px-3 py-2 text-sm"
-              required
-            />
-            {error && <p className="text-xs text-alertRed">{error}</p>}
-            <button disabled={loading} type="submit" className="bg-navy text-white w-full rounded py-2 text-sm">
-              {loading ? "Sending..." : "Send OTP"}
-            </button>
-          </form>
-        )}
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            required
+            className="w-full border rounded px-3 py-2 text-sm"
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password (min 6 characters)"
+            required
+            minLength={6}
+            className="w-full border rounded px-3 py-2 text-sm"
+          />
 
-        {step === "otp" && (
-          <form onSubmit={handleVerifyOtp} className="space-y-3">
-            <label className="text-sm block">Enter OTP</label>
-            <input
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              placeholder="6-digit code"
-              className="w-full border rounded px-3 py-2 text-sm"
-              required
-            />
-            {error && <p className="text-xs text-alertRed">{error}</p>}
-            <button disabled={loading} type="submit" className="bg-navy text-white w-full rounded py-2 text-sm">
-              {loading ? "Verifying..." : "Verify & Login"}
-            </button>
-          </form>
-        )}
+          {error && <p className="text-xs text-alertRed">{error}</p>}
 
-        {/* Required by Firebase invisible reCAPTCHA for phone auth */}
-        <div id="recaptcha-container" />
+          <button disabled={loading} type="submit" className="bg-navy text-white w-full rounded py-2 text-sm">
+            {loading ? "Please wait..." : mode === "login" ? "Login" : "Create account"}
+          </button>
+        </form>
+
+        <button
+          onClick={() => setMode(mode === "login" ? "signup" : "login")}
+          className="text-xs text-navy underline mt-3"
+        >
+          {mode === "login" ? "New officer? Create account" : "Already have an account? Login"}
+        </button>
       </div>
     </div>
   );
