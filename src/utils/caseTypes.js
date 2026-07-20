@@ -1,3 +1,7 @@
+// Master list of every investigation type, matching the MP Police document catalogue.
+// Each type has its own document/step list - this drives what shows up in
+// "Docs & Details" once a case of that type is created.
+
 export const CASE_TYPES = [
   { code: "CMP", label: "Complaint Inquiry", labelHi: "शिकायत जांच", steps: [
     "Complaint Letter", "Application Letter", "Inquiry Order", "Notice (Complainant)", "Notice (Respondent)",

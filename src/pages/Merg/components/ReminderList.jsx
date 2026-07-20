@@ -1,9 +1,16 @@
 import { useMerg } from "../../../context/MergContext.jsx";
 
-const REMINDER_STEPS = ["Receive Postmortem Report", "Doctor Statement", "Witness Statements", "Case Diary"];
+// Module 8 - Reminder Engine. Derives reminders from workflow + doctor task state.
+const REMINDER_STEPS = [
+  "Receive Postmortem Report",
+  "Doctor Statement",
+  "Witness Statements",
+  "Case Diary",
+];
 
 export default function ReminderList() {
   const { mergCases, doctorTasks } = useMerg();
+
   const reminders = [];
 
   mergCases.forEach((c) => {

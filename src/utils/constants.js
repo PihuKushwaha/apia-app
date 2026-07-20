@@ -9,3 +9,5 @@ export const ALERT_LEVEL = {
   ORANGE: "orange",
   GREEN: "green",
 };
+
+// From PRD section 9 - Investigation Categories

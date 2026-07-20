@@ -12,10 +12,10 @@ export default function Dashboard() {
   const noStepsDone = cases.filter((c) => c.workflow.every((w) => !w.done) && c.workflow.length > 0).length;
 
   const stats = [
-    { title: "Total Cases", count: cases.length, status: "neutral", icon: Files },
-    { title: "Done", count: doneCases, status: "green", icon: CheckCircle2 },
-    { title: "Pending", count: pendingCases, status: "red", icon: FolderClock },
-    { title: "Not Started", count: noStepsDone, status: "orange", icon: AlertOctagon },
+    { title: "Total Cases", count: cases.length, status: "neutral", filter: "all", icon: Files },
+    { title: "Done", count: doneCases, status: "green", filter: "done", icon: CheckCircle2 },
+    { title: "Pending", count: pendingCases, status: "red", filter: "pending", icon: FolderClock },
+    { title: "Not Started", count: noStepsDone, status: "orange", filter: "pending", icon: AlertOctagon },
   ];
 
   return (

@@ -4,6 +4,7 @@ import { useMerg } from "../../../context/MergContext.jsx";
 import DocumentPreview from "../../../components/common/DocumentPreview.jsx";
 import PrintPreviewModal from "../../../components/common/PrintPreviewModal.jsx";
 
+// Module 4 - Auto Draft Engine + Module 12 - Print Center
 export default function DraftDocuments() {
   const { mergId } = useParams();
   const { getCase, approveDraft } = useMerg();

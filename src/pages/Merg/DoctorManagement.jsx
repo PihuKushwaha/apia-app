@@ -1,5 +1,6 @@
 import { useMerg } from "../../context/MergContext.jsx";
 
+// Module 7 - Doctor Management. Sorted by priority then due date.
 export default function DoctorManagement() {
   const { doctorTasks, resolveDoctorTask } = useMerg();
 
@@ -30,7 +31,10 @@ export default function DoctorManagement() {
               {t.priority === "urgent" && (
                 <span className="text-xs px-2 py-0.5 rounded bg-alertRed/10 text-alertRed">Urgent</span>
               )}
-              <button onClick={() => resolveDoctorTask(t.id)} className="text-xs border rounded px-2 py-1">
+              <button
+                onClick={() => resolveDoctorTask(t.id)}
+                className="text-xs border rounded px-2 py-1"
+              >
                 Mark done
               </button>
             </div>

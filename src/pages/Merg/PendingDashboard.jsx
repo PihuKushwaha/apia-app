@@ -1,6 +1,7 @@
 import { useMerg } from "../../context/MergContext.jsx";
 import { useNavigate } from "react-router-dom";
 
+// Module 13 - Pending Dashboard (detailed breakdown)
 export default function PendingDashboard() {
   const { mergCases, doctorTasks } = useMerg();
   const navigate = useNavigate();

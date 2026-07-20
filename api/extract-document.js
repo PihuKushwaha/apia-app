@@ -60,7 +60,16 @@ Rules:
       let base64 = fileBase64;
       if (mode === "url") {
         if (!fileUrl) return res.status(400).json({ error: "No file URL provided." });
-        const fetchRes = await fetch(fileUrl);
+        let fetchRes;
+        try {
+          fetchRes = await fetch(fileUrl);
+        } catch (fetchErr) {
+          console.error("File fetch failed. URL was:", fileUrl);
+          console.error("Fetch error:", fetchErr, fetchErr.cause);
+          return res.status(400).json({
+            error: `Could not download the uploaded file from storage: ${fetchErr.cause?.message || fetchErr.message}`,
+          });
+        }
         if (!fetchRes.ok) {
           return res.status(400).json({ error: `Could not download the uploaded file (status ${fetchRes.status}).` });
         }
@@ -119,6 +128,7 @@ Rules:
 
     return res.status(200).json(parsed);
   } catch (err) {
+    // Catch-all so the client always gets JSON, never a raw crash page
     console.error("extract-document crashed:", err);
     return res.status(500).json({ error: err.message || "Unexpected server error." });
   }

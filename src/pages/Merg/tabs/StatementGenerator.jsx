@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMerg } from "../../../context/MergContext.jsx";
 
+// Module 5 - Statement Generation Engine
+// Asks structured questions based on witness relationship, then builds a draft statement.
 const QUESTION_SETS = {
   relative: [
     { key: "howInformed", q: "How did you receive information about the incident?" },
