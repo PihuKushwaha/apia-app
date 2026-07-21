@@ -4,7 +4,8 @@ import { FileText, Image as ImageIcon, Mic, Type, Loader2, Sparkles } from "luci
 import { useCaseContext } from "../../context/CaseContext.jsx";
 import { useAuthContext } from "../../context/AuthContext.jsx";
 import { CASE_TYPES } from "../../utils/caseTypes.js";
-import { fileToBase64, uploadFileToStorage, extractDocument } from "../../utils/fileHelpers.js";
+import { extractDocument } from "../../utils/fileHelpers.js";
+import { extractText } from "../../utils/documentExtractor.js";
 
 const uploadModes = [
   { key: "document", label: "PDF / DOCX", icon: FileText },
@@ -27,49 +28,37 @@ export default function NewCaseIntake() {
   const [pendingManualCreate, setPendingManualCreate] = useState(false);
 
   const runExtraction = async () => {
-    if (mode === "document" && file) {
-      if (file.name.toLowerCase().endsWith(".docx")) {
-        setStatusMsg("Reading DOCX file...");
-        const mammoth = (await import("mammoth")).default;
-        const arrayBuffer = await file.arrayBuffer();
-        let result;
-        try {
-          result = await mammoth.extractRawText({ arrayBuffer });
-        } catch {
-          throw new Error(
-            'This file does not look like a valid .docx. If it is actually a PDF that was renamed to .docx, please pick the real .pdf file instead. If it is an old .doc file, open it in Word and use "Save As" to convert it to .docx first.'
-          );
-        }
-        setStatusMsg("AI is reading every detail in the document...");
-        return await extractDocument({ mode: "text", extractedText: result.value });
-      }
-      setStatusMsg("Reading PDF file...");
-      setStatusMsg("AI is reading every detail in the document...");
-      if (file.size < 4 * 1024 * 1024) {
-        const base64 = await fileToBase64(file);
-        return await extractDocument({ mode: "file", fileBase64: base64, mediaType: file.type || "application/pdf" });
-      }
-      const url = await uploadFileToStorage(file, officer.uid);
-      return await extractDocument({ mode: "url", fileUrl: url, mediaType: file.type || "application/pdf" });
-    }
+  if (mode === "document" && file) {
+    setStatusMsg("Reading document...");
+    const extractedText = await extractText(file);
 
-    if (mode === "photo" && file) {
-      setStatusMsg("AI is reading every detail in the photo...");
-      if (file.size < 4 * 1024 * 1024) {
-        const base64 = await fileToBase64(file);
-        return await extractDocument({ mode: "file", fileBase64: base64, mediaType: file.type || "image/jpeg" });
-      }
-      const url = await uploadFileToStorage(file, officer.uid);
-      return await extractDocument({ mode: "url", fileUrl: url, mediaType: file.type || "image/jpeg" });
-    }
+    setStatusMsg("AI is analysing document...");
+    return await extractDocument({
+      mode: "text",
+      extractedText,
+    });
+  }
 
-    if (mode === "text" && text.trim()) {
-      setStatusMsg("AI is reading every detail in the text...");
-      return await extractDocument({ mode: "text", extractedText: text });
-    }
+  if (mode === "photo" && file) {
+    setStatusMsg("Reading image...");
+    const extractedText = await extractText(file);
 
-    return null;
-  };
+    setStatusMsg("AI is analysing image...");
+    return await extractDocument({
+      mode: "text",
+      extractedText,
+    });
+  }
+
+  if (mode === "text" && text.trim()) {
+    return await extractDocument({
+      mode: "text",
+      extractedText: text,
+    });
+  }
+
+  return null;
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();

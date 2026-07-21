@@ -8,12 +8,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
-      return res.status(500).json({ error: "ANTHROPIC_API_KEY is not set on the server." });
+      return res.status(500).json({ error: "GROQ_API_KEY is not set on the server." });
     }
 
-    const { mode, extractedText, fileBase64, mediaType, fileUrl } = req.body || {};
+    const { extractedText } = req.body || {};
 
     const typeList = CASE_TYPES.map((t) => `${t.code} = ${t.label} (${t.labelHi})`).join("\n");
 
@@ -50,63 +50,33 @@ Rules:
 - Keep names, numbers, dates exactly as written in the document (do not translate names).
 - accused[].sections and complainant fields should be filled per-person where the document specifies them.`;
 
-    let content;
-    if (mode === "text") {
-      if (!extractedText || !extractedText.trim()) {
-        return res.status(400).json({ error: "No text provided to analyze." });
-      }
-      content = [{ type: "text", text: extractedText }];
-    } else if (mode === "file" || mode === "url") {
-      let base64 = fileBase64;
-      if (mode === "url") {
-        if (!fileUrl) return res.status(400).json({ error: "No file URL provided." });
-        let fetchRes;
-        try {
-          fetchRes = await fetch(fileUrl);
-        } catch (fetchErr) {
-          console.error("File fetch failed. URL was:", fileUrl);
-          console.error("Fetch error:", fetchErr, fetchErr.cause);
-          return res.status(400).json({
-            error: `Could not download the uploaded file from storage: ${fetchErr.cause?.message || fetchErr.message}`,
-          });
-        }
-        if (!fetchRes.ok) {
-          return res.status(400).json({ error: `Could not download the uploaded file (status ${fetchRes.status}).` });
-        }
-        const arrayBuffer = await fetchRes.arrayBuffer();
-        base64 = Buffer.from(arrayBuffer).toString("base64");
-      }
-      if (!base64) {
-        return res.status(400).json({ error: "No file data provided." });
-      }
-      if (mediaType === "application/pdf") {
-        content = [
-          { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } },
-          { type: "text", text: "Extract every case detail from this document, following the schema exactly." },
-        ];
-      } else {
-        content = [
-          { type: "image", source: { type: "base64", media_type: mediaType || "image/jpeg", data: base64 } },
-          { type: "text", text: "Extract every case detail from this document image, following the schema exactly." },
-        ];
-      }
-    } else {
-      return res.status(400).json({ error: "Invalid mode. Use 'text', 'file', or 'url'." });
-    }
+   if (!extractedText || !extractedText.trim()) {
+    return res.status(400).json({
+      error: "No extracted text received.",
+    });
+  }
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "claude-sonnet-5",
-        max_tokens: 4096,
-        system: systemPrompt,
-        messages: [{ role: "user", content }],
-      }),
+  model: "llama-3.3-70b-versatile",
+  messages: [
+    {
+      role: "system",
+      content: systemPrompt,
+    },
+   {
+  role: "user",
+  content: extractedText,
+},
+  ],
+  temperature: 0,
+  max_tokens: 4096,
+}),
     });
 
     const data = await response.json();
@@ -115,8 +85,7 @@ Rules:
       return res.status(500).json({ error: data.error.message });
     }
 
-    const textBlock = (data.content || []).find((b) => b.type === "text");
-    const raw = textBlock?.text || "{}";
+    const raw = data.choices?.[0]?.message?.content || "{}";
     const clean = raw.replace(/```json|```/g, "").trim();
 
     let parsed;
